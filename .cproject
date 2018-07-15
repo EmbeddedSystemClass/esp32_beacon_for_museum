@@ -45,8 +45,9 @@
 									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/bt/bluedroid/api/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/sdmmc/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/fatfs/src&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/lwip/include/lwip&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/project_zer0/build/include}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/lwip/include/lwip&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/json/cJSON&quot;"/>
 								</option>
 								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.2140793308" languageId="org.eclipse.cdt.core.gcc" languageName="GNU C" sourceContentType="org.eclipse.cdt.core.cSource,org.eclipse.cdt.core.cHeader" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 							</tool>

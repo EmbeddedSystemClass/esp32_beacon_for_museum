@@ -20,7 +20,8 @@
 
 /*Prototype*/
 void sd_card_init();
-data check_database(char id[9]);
+bool check_database();
 char *get_name(char name[64]);
+long cal_size(FILE * file);
 
 #endif /* MAIN_MY_SD_CARD_H_ */

@@ -4,13 +4,14 @@
 // *  Created on: Jul 3, 2018
 // *      Author: hai_dotcom
 // */
-#include "http_download.h"
-//
 
-char *REQUEST = "GET " WEB_URL " HTTP/1.0\r\n"
-    "Host: "WEB_SERVER"\r\n"
-    "User-Agent: esp-idf/1.0 esp32\r\n"
-    "\r\n";
+#include "http_download.h"
+#include "sdkconfig.h"
+
+char * REQUEST = "GET " WEB_URL " HTTP/1.0\r\n"
+				"Host: "WEB_SERVER"\r\n"
+				"User-Agent: esp-idf/1.0 esp32\r\n"
+				"\r\n";
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
 EventGroupHandle_t wifi_event_group;
 /* The event group allows multiple bits for each event,
@@ -19,7 +20,6 @@ EventGroupHandle_t wifi_event_group;
 const int CONNECTED_BIT = BIT0;
 
 extern xQueueHandle Http_Queue_Handle;
-
 esp_err_t event_handler(void *ctx, system_event_t *event)
 {
 	switch(event->event_id){
@@ -70,87 +70,85 @@ void http_download_task(void *pvParameters)
 	int s,r;
 	char recv_buf[64];
 	data rec_data;
+	REQUEST =(char*)calloc(128,sizeof(char));
 	while(1){
 		if(xQueueReceive(Http_Queue_Handle,&rec_data,portMAX_DELAY)){
 			xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT,
 			                            false, true, portMAX_DELAY);
-			        printf("Connected to AP");
+			printf("Connected to AP");
 
-			        int err = getaddrinfo(WEB_SERVER, "80", &hints, &res);
+		    int err = getaddrinfo(WEB_SERVER, "80", &hints, &res);
 
-			        if(err != 0 || res == NULL) {
-			            printf("DNS lookup failed err=%d res=%p \n", err, res);
-			            vTaskDelay(1000 / portTICK_PERIOD_MS);
-			            continue;
-			        }
+			if(err != 0 || res == NULL) {
+			   printf("DNS lookup failed err=%d res=%p \n", err, res);
+			   vTaskDelay(1000 / portTICK_PERIOD_MS);
+			   continue;
+			}
 
-			        /* Code to print the resolved IP.
+			 /* Code to print the resolved IP.
 
-			           Note: inet_ntoa is non-reentrant, look at ipaddr_ntoa_r for "real" code */
-			        addr = &((struct sockaddr_in *)res->ai_addr)->sin_addr;
-			        printf("DNS lookup succeeded. IP=%s \n", inet_ntoa(*addr));
+			 Note: inet_ntoa is non-reentrant, look at ipaddr_ntoa_r for "real" code */
+			 addr = &((struct sockaddr_in *)res->ai_addr)->sin_addr;
+			 printf("DNS lookup succeeded. IP=%s \n", inet_ntoa(*addr));
 
-			        s = socket(res->ai_family, res->ai_socktype, 0);
-			        if(s < 0) {
-			            printf("... Failed to allocate socket. \n");
-			            freeaddrinfo(res);
-			            vTaskDelay(1000 / portTICK_PERIOD_MS);
-			            //continue;
-			        }
-			        printf("... allocated socket\n");
+			 s = socket(res->ai_family, res->ai_socktype, 0);
+			 if(s < 0) {
+			    printf("... Failed to allocate socket. \n");
+			    freeaddrinfo(res);
+			    vTaskDelay(1000 / portTICK_PERIOD_MS);
+			 }
+			 printf("... allocated socket\n");
 
-			        if(connect(s, res->ai_addr, res->ai_addrlen) != 0) {
-			            printf("... socket connect failed errno=%d \n", err);
-			            close(s);
-			            freeaddrinfo(res);
-			            vTaskDelay(4000 / portTICK_PERIOD_MS);
-			            continue;
-			        }
+			 if(connect(s, res->ai_addr, res->ai_addrlen) != 0) {
+			     printf("... socket connect failed errno=%d \n", err);
+			     close(s);
+			     freeaddrinfo(res);
+			     vTaskDelay(4000 / portTICK_PERIOD_MS);
+			     continue;
+			 }
 
-			        printf("... connected \n");
-			        freeaddrinfo(res);
+			 printf("... connected \n");
+			 freeaddrinfo(res);
+			 if (write(s, REQUEST, strlen(REQUEST)) < 0) {
+				 printf("... socket send failed \n");
+			     close(s);
+			     vTaskDelay(4000 / portTICK_PERIOD_MS);
+			     continue;
+			 }
+			 printf("... socket send success \n");
 
-			        if (write(s, REQUEST, strlen(REQUEST)) < 0) {
-			            printf("... socket send failed \n");
-			            close(s);
-			            vTaskDelay(4000 / portTICK_PERIOD_MS);
-			            continue;
-			        }
-			        printf("... socket send success \n");
+			 struct timeval receiving_timeout;
+			 receiving_timeout.tv_sec = 5;
+			 receiving_timeout.tv_usec = 0;
+			 if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &receiving_timeout,
+			      sizeof(receiving_timeout)) < 0) {
+				 printf("... failed to set socket receiving timeout \n");
+			     close(s);
+			     vTaskDelay(4000 / portTICK_PERIOD_MS);
+			     continue;
+			 }
+			 printf("... set socket receiving timeout success\n");
 
-			        struct timeval receiving_timeout;
-			        receiving_timeout.tv_sec = 5;
-			        receiving_timeout.tv_usec = 0;
-			        if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &receiving_timeout,
-			                sizeof(receiving_timeout)) < 0) {
-			            printf("... failed to set socket receiving timeout \n");
-			            close(s);
-			            vTaskDelay(4000 / portTICK_PERIOD_MS);
-			            continue;
-			        }
-			        printf("... set socket receiving timeout success\n");
-
-			        /* Read HTTP response */
-			        printf("Read HTTP response \n");
-			        FILE *f = fopen(rec_data.file,"wb");
-			        if(f == NULL){
-			          	printf("Failed to open file \n");
-			        }else
-			           	printf("Open file \n");
-			        int count = 0;
-			        do {
-			            bzero(recv_buf, sizeof(recv_buf));
-			            r = read(s, recv_buf, sizeof(recv_buf)-1);
-			            for(int i = 0; i<r; i++){
-			            	fputc(recv_buf[i],f);
-			            }
-			            printf("\n downloading ... %d \n",count++);
-
-			        } while(r > 0);
-			        fclose(f);
-			        printf("... done reading from socket. Last read return=%d errno=%d\r\n", r, err);
-			        close(s);
-			    }
+			 /* Read HTTP response */
+			 printf("Read HTTP response \n");
+			 FILE *f = fopen(rec_data.name,"w");
+			 if(f == NULL){
+			   	printf("Failed to open file for writing\n");
+			 }else
+			   	printf("Open file \n");
+			 int count = 0;
+			 do {
+				 bzero(recv_buf, sizeof(recv_buf));
+			     r = read(s, recv_buf, sizeof(recv_buf)-1);
+			     for(int i = 0; i<r; i++){
+			    	 fputc(recv_buf[i],f);
+			      }
+			      printf("\n downloading ... %d \n",count++);
+			 } while(r > 0);
+			 fclose(f);
+			 printf("... done reading from socket. Last read return=%d errno=%d\r\n", r, err);
+			 close(s);
 		}
+	}
 }
 

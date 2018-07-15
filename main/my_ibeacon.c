@@ -7,6 +7,7 @@
 #include "project_main.h"
 #include "my_ibeacon.h"
 #include "my_sd_card.h"
+#include "sdkconfig.h"
 
 static const char* DEMO_TAG = "IBEACON";
 extern esp_ble_ibeacon_vendor_t vendor_config;
@@ -225,14 +226,14 @@ void action_inzone(void *parameter)
 	while(1){
 		if(xQueueReceive(Beacon_Queue_Handle,&beacon,portMAX_DELAY)){
 			printf("Received major,minor: %d - %d \n",beacon.major, beacon.minor);
-			char id[9];
-			sprintf(id,"%d_%d",beacon.major,beacon.minor);
-			if(check_database(id).check){
-				printf("action in zone \n");
-			}
-			else{
-				printf("Can't find this beacon in database\n");
-			}
+//			char id[9];
+//			sprintf(id,"%d_%d",beacon.major,beacon.minor);
+//			if(check_database(id).check){
+//				printf("action in zone \n");
+//			}
+//			else{
+//				printf("Can't find this beacon in database\n");
+//			}
 		}
 		else{
 			printf("Failed to received \n");

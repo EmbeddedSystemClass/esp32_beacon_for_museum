@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "controller.h"
 #include "nvs_flash.h"
 #include "driver/gpio.h"
@@ -31,9 +32,7 @@
 
 /*Struct*/
 typedef struct{
-	bool check;
 	char *name;
-	char *file;
 	char *url;
 }data;
 

@@ -17,6 +17,7 @@ void app_main()
     ibeacon_init();
     sd_card_init();
     initialise_wifi();
-    xTaskCreate(&http_download_task,"http_download_task",2048,NULL,6,NULL);
+    xTaskCreate(&http_download_task,"http_download_task",2048,NULL,8,NULL);
+    check_database();
     xTaskCreate(&action_inzone,"action_inzone",2048,NULL,7,NULL);
 }

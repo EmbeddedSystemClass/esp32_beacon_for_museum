@@ -6,7 +6,11 @@
  */
 
 #include "my_sd_card.h"
+#include "http_download.h"
 #include "project_main.h"
+
+#define unavailable false
+#define available   true
 
 extern xQueueHandle Http_Queue_Handle;
 
@@ -50,79 +54,48 @@ void sd_card_init()
 	    sdmmc_card_print_info(stdout, card);
 }
 
-/*Get object's name based on ID*/
-char * get_name(char line[128])
+/*Calculate size of file*/
+long cal_size(FILE * file)
 {
-	char * name = (char * )calloc(64,sizeof(char));
-	bool flag = false;
-	uint8_t j = 0;
-	printf("get name \n");
-	for (uint8_t i = 0;i<strlen(line)-2;i++){
-		//#: begin of name in a received string - ex: ..ort.mp3__name#Mona Lisa
-		if(line[i] != '#' && flag == false){
-			continue;
-		}
-		else{
-			if(line[i] == '#')
-				flag = true;
-			*(name+j) = line[i+1];
-			j++;
-		}
-	}
-	return name;
+	fseek(file,0L,SEEK_END);
+	long size = ftell(file);
+	fseek(file,0L,SEEK_SET);
+	return size;
 }
 
-/*Get object's file based on ID*/
-char * get_file(char line[128])
+/*Check the existence of the database file
+ *If database file isn't available, download it*/
+bool check_database()
 {
-	char * file = (char*)calloc(16,sizeof(char));
-	uint8_t start = strstr(line,"/") - line+1;
-	uint8_t end = strstr(line,"!") - line;
-	for(uint8_t i = start; i < end;i++){
-		*(file+i) = line[i];
-	}
-	//printf("Play: %s \n",file);
-	return file;
-}
-
-data check_database(char id[9])
-{
-	char line[128];
 	data data;
-	data.check = false;
-	data.name ="";
-	data.file="";
-	data.url="";
 	FILE* database= fopen("/sdcard/database.txt", "r");
 	if (database==NULL){
-		printf("Failed to open file for reading\n");
-		fclose(database);
-		return data;
+		printf("Database isn't available \r\n Downloading database ... \n ");
+		data.url = "http://www.stream.esy.es/database/data/hcm_fine_arts_museum/overview/hcm_fine_arts_museum.txt";
+		data.name = "/sdcard/database.txt";
+		if(!xQueueSend(Http_Queue_Handle,&data,portMAX_DELAY)){
+			printf("Failed to send request to HTTP download task \n");
+		}
+		return unavailable;
 	}
 	else{
-		printf("open file \n");
-		while(fgets(line,sizeof(line),database)!=NULL){
-			printf(line);
-			/*Check ID in file*/
-			if(strstr(line,id)!=NULL){
-				data.check = true;
-				data.name = get_name(line);
-				//data.file = get_file(line);
-				data.file = "/sdcard/MON.mp3";
-				data.url = "http://www.hubharp.com/web_sound/BachGavotteShort.mp3";
-				printf("name: %s\n",data.name);
-				break;
+		printf("Database is available \n");
+		long size = cal_size(database);
+		if(size <= 0){
+			printf("Warning: Database is empty \r\n Program will remove it and try downloading again \r\n");
+			if(remove("/sdcard/database.txt") == NULL)
+				printf("Deleted successfully \n");
+			else
+				printf("Unable to delete file \n");
+			data.url = "http://www.stream.esy.es/database/data/hcm_fine_arts_museum/overview/hcm_fine_arts_museum.txt";
+			data.name = "/sdcard/database.txt";
+			if(!xQueueSend(Http_Queue_Handle,&data,portMAX_DELAY)){
+				printf("Failed to send request to HTTP download task \n");
 			}
 		}
-		FILE *file = fopen(data.file,"r");
-		if(data.check == true && file == NULL){
-			if( ! xQueueSend(Http_Queue_Handle,&data,portMAX_DELAY)){
-				printf("Failed to send \n");
-			}
-			fclose(file);
-		}
-
+		else
+			printf("Size of database: %ld bytes\n",size);
+		//fclose(database);
+		return available;
 	}
-	fclose(database);
-	return data;
 }
